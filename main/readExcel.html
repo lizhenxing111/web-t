@@ -3,11 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <title></title>
+    <script src="../source/jquery-3.3.1.min.js"></script>
     <script src="../source/xlsx.full.min.js"></script>
+    <script src="../source/layer/layer.js"></script>
+    <link rel="stylesheet" href="../source/layer/layer.css">
+    <link rel="stylesheet" href="../source/bootstrap/css/bootstrap.min.css">
 </head>
 <body>
-<input type="file"onchange="importf(this)" />
+<input type="file" onchange="importf(this)" />
 <div id="demo"></div>
+<div>
+    <p>
+
+    </p>
+</div>
 <script>
     /*
     FileReader共有4种读取方法：
@@ -36,9 +45,25 @@
                     type: 'binary'
                 });
             }
-            //wb.SheetNames[0]是获取Sheets中第一个Sheet的名字
-            //wb.Sheets[Sheet名]获取第一个Sheet的数据
-            document.getElementById("demo").innerHTML= JSON.stringify( XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]) );
+            var html=getHtml(wb);
+            console.log(wb)
+            layer.open({
+                type:1,
+                content:html,
+                area:['500px','400px'],
+                title: '请选择表格工作项',
+                btn: ['确定', '取消'],
+                yes:function (index) {
+                    var index=$("#sheetIndex").val();
+                    //sheet转换json
+
+                    var data=JSON.stringify( XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[index]]));
+                    document.getElementById("demo").innerHTML= data;
+                    var row=wb.Sheets[wb.SheetNames[index]]['!ref'].split(":")
+
+                    layer.closeAll();
+                },
+            });
         };
         if(rABS) {
             reader.readAsArrayBuffer(f);
@@ -55,6 +80,16 @@
         o += String.fromCharCode.apply(null, new Uint8Array(data.slice(l * w)));
         return o;
     }
+    //添加页面sheet
+    function getHtml(wb) {
+        var html='<div>';
+        var sheetLength=wb.SheetNames.length;
+        for(var i=0;i<=sheetLength-1;i++){
+            html+='<label><input type="radio" name="sheetIndex" id="sheetIndex" value="'+i+'" checked>'+wb.SheetNames[i]+'</label><br/>';
+        }
+        return html+"</div>";
+    }
+    //
 </script>
 </body>
 </html>
