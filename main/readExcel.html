@@ -46,7 +46,6 @@
                 });
             }
             var html=getHtml(wb);
-            console.log(wb)
             layer.open({
                 type:1,
                 content:html,
@@ -57,13 +56,15 @@
                     var index=$("#sheetIndex").val();
                     //sheet转换json
                     var sheetData=wb.Sheets[wb.SheetNames[index]];
-                    var sheetDataJson=JSON.stringify( XLSX.utils.sheet_to_formulae(sheetData));
+                    var sheetDataJson=JSON.stringify( XLSX.utils.sheet_to_json(sheetData));
                     document.getElementById("demo").innerHTML= sheetDataJson;
                     //https://github.com/SheetJS/js-xlsx
-                    //var rowData=getRow(sheetData);
-
+                    var rowData=getRow(sheetData);
+                    $.each(rowData,function (i,value) {
+                        console.info(sheetData[value].v);
+                    })
                     layer.closeAll();
-                },
+                }
             });
         };
         if(rABS) {
@@ -90,15 +91,25 @@
         }
         return html+"</div>";
     }
-    //获取一共多少列
+    //获取列名
     function getRow(sheet) {
-        //rows包括开始到结束 例 A1:C20
-        var rows=sheet[!ref].split(":");
-        //字母表
-        for (var i = 0; i < 25; i++) {
-            console.log(String.fromCharCode((65 + i)));
+        /*把excel中范围(A1:B2)转换为 range:{ s: {c: 0, r: 0}, e: {c: 2, r: 4}}
+        * s为原点 e为终点
+        * 解析 数据为第一列到第三列,第一行到第五行
+        * 即   三行五列
+        * */
+        var range=XLSX.utils.decode_range(sheet['!ref']);
+        /*获取所有列的坐标
+        * A1 A2 A3....
+        *
+        * */
+        var headers=[];
+        for(var R = range.s.c;R<= range.e.c; R++) {
+            var address={c: R, r: 0};
+            var cell_ref = XLSX.utils.encode_cell(address);
+            headers.push(cell_ref);
         }
-
+        return headers;
     }
 </script>
 </body>
