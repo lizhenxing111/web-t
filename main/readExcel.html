@@ -53,16 +53,16 @@
                 title: '请选择表格工作项',
                 btn: ['确定', '取消'],
                 yes:function (index) {
-                    var index=$("#sheetIndex").val();
+                    var index=$("[name='sheetIndex']:checked").val();
                     //sheet转换json
                     var sheetData=wb.Sheets[wb.SheetNames[index]];
                     var sheetDataJson=JSON.stringify( XLSX.utils.sheet_to_json(sheetData));
-                    document.getElementById("demo").innerHTML= sheetDataJson;
-                    //https://github.com/SheetJS/js-xlsx
-                    var rowData=getRow(sheetData);
-                    $.each(rowData,function (i,value) {
-                        console.info(sheetData[value].v);
-                    })
+                    //document.getElementById("demo").innerHTML= sheetDataJson;
+
+                    var headerName=getHeaderData(sheetData);
+
+                    var colData=getColData(sheetData);
+                    $("#demo").html(colData);
                     layer.closeAll();
                 }
             });
@@ -91,8 +91,8 @@
         }
         return html+"</div>";
     }
-    //获取列名
-    function getRow(sheet) {
+    //获取列名数据
+    function getHeaderData(sheet) {
         /*把excel中范围(A1:B2)转换为 range:{ s: {c: 0, r: 0}, e: {c: 2, r: 4}}
         * s为原点 e为终点
         * 解析 数据为第一列到第三列,第一行到第五行
@@ -103,14 +103,28 @@
         * A1 A2 A3....
         *
         * */
-        var headers=[];
+        var headerData=[];
         for(var R = range.s.c;R<= range.e.c; R++) {
             var address={c: R, r: 0};
             var cell_ref = XLSX.utils.encode_cell(address);
-            headers.push(cell_ref);
+            headerData.push(sheet[cell_ref].v);
         }
-        return headers;
+        return headerData;
+    }
+
+    /**
+     * 获取整列数据
+     */
+    function getColData(sheet) {
+        var range=XLSX.utils.decode_range(sheet['!ref']);
+
+        var cols_data=[];
+        for(var R = range.s.r;R<= range.e.r; R++) {
+            var address={c: 0, r: R};
+            var col_ref = XLSX.utils.encode_cell(address);
+           cols_data.push(sheet[col_ref].v);
+        }
+        return cols_data;
     }
 </script>
 </body>
-</html>
