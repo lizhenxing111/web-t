@@ -3,32 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <title></title>
-    <script src="../source/jquery-3.3.1.min.js"></script>
+    <script src="http://code.jquery.com/jquery-1.11.1.min.js"></script>
+    <script src="../source/jquery.dragsort-0.6.js"></script>
     <script src="../source/xlsx.full.min.js"></script>
     <script src="../source/layer/layer.js"></script>
     <link rel="stylesheet" href="../source/layer/layer.css">
     <link rel="stylesheet" href="../source/bootstrap/css/bootstrap.min.css">
+<style>
+    .sheet{width: 100%;height:auto;padding-left: 30px;float: left}
+</style>
 </head>
 <body>
 <input type="file" onchange="importf(this)" />
-<div id="demo"></div>
-<div>
-    <p>
-
-    </p>
+<!--excel工作项sheet显示区域-->
+<div style="float: left;width: 100%;">
+    中文列名:<textarea id="list1SortOrder" style="height: 200px;width: 100%" readonly disabled></textarea>
+    <br/>
+    属性:<textarea id="list1Value" style="height: 200px;width: 100%" readonly disabled></textarea>
+</div>
+<div id="sheet" class="sheet">
+    <b>Excel-sheet:</b>
+    <span id="sheetbtn"></span>
+    <div id="excelData" style="height: 10px"></div>
 </div>
 <script>
-    /*
-    FileReader共有4种读取方法：
-    1.readAsArrayBuffer(file)：将文件读取为ArrayBuffer。
-    2.readAsBinaryString(file)：将文件读取为二进制字符串
-    3.readAsDataURL(file)：将文件读取为Data URL
-    4.readAsText(file, [encoding])：将文件读取为文本，encoding缺省值为'UTF-8'
-                 */
     var wb;//读取完成的数据
     var rABS = false; //是否将文件读取为二进制字符串
-
-    function importf(obj) {//导入
+    function importf(obj) {
         if(!obj.files) {
             return;
         }
@@ -45,27 +46,9 @@
                     type: 'binary'
                 });
             }
-            var html=getHtml(wb);
-            layer.open({
-                type:1,
-                content:html,
-                area:['500px','400px'],
-                title: '请选择表格工作项',
-                btn: ['确定', '取消'],
-                yes:function (index) {
-                    var index=$("[name='sheetIndex']:checked").val();
-                    //sheet转换json
-                    var sheetData=wb.Sheets[wb.SheetNames[index]];
-                    var sheetDataJson=JSON.stringify( XLSX.utils.sheet_to_json(sheetData));
-                    //document.getElementById("demo").innerHTML= sheetDataJson;
 
-                    var headerName=getHeaderData(sheetData);
-
-                    var colData=getColData(sheetData);
-                    $("#demo").html(colData);
-                    layer.closeAll();
-                }
-            });
+            var sheetHtml=getSheetHtml(wb);
+            $("#sheetbtn").html(sheetHtml);
         };
         if(rABS) {
             reader.readAsArrayBuffer(f);
@@ -83,13 +66,24 @@
         return o;
     }
     //添加页面sheet
-    function getHtml(wb) {
-        var html='<div>';
+    function getSheetHtml(wb) {
+        var html='';
         var sheetLength=wb.SheetNames.length;
+        if(sheetLength==0){html="<span>文件无工作项sheet</span>";}
         for(var i=0;i<=sheetLength-1;i++){
-            html+='<label><input type="radio" name="sheetIndex" id="sheetIndex" value="'+i+'" checked>'+wb.SheetNames[i]+'</label><br/>';
+            html+='<button type="button" onclick="showExcelData('+i+')" class="btn btn-default" data-sheet="'+i+'">'+wb.SheetNames[i]+'</button>&nbsp;';
         }
-        return html+"</div>";
+        return html;
+    }
+    function showExcelData(sheetIndex) {
+        $("#sheetbtn [type='button']").addClass("btn btn-default");
+        $(this).addClass("btn btn-primary");
+        var sheetData=wb.Sheets[wb.SheetNames[sheetIndex]];
+        var sheetDataJson=JSON.stringify( XLSX.utils.sheet_to_html(sheetData));
+        sheetDataJson=sheetDataJson.substring(1,sheetDataJson.length-1);
+        $("#excelData").html(sheetDataJson);
+        $("table").addClass("table table-responsive table-hover table-bordered table-condensed");
+        $("tbody").dragsort({ dragSelector: "tr", dragEnd: saveOrder, placeHolderTemplate: "<tr></tr>" });
     }
     //获取列名数据
     function getHeaderData(sheet) {
@@ -114,17 +108,38 @@
 
     /**
      * 获取整列数据
+     * sheet 数据
+     * num 列 0起始
      */
-    function getColData(sheet) {
+    function getColData(sheet,num) {
         var range=XLSX.utils.decode_range(sheet['!ref']);
-
+        //判断是否超出文件数据内容的列
+        if(num>range.e.c){
+            layer.msg("选择的列,超出数据列最大值");
+            return;
+        }
         var cols_data=[];
         for(var R = range.s.r;R<= range.e.r; R++) {
-            var address={c: 0, r: R};
+            var address={c: num, r: R};
             var col_ref = XLSX.utils.encode_cell(address);
            cols_data.push(sheet[col_ref].v);
         }
         return cols_data;
     }
+    function saveOrder() {
+        var data = $("table tbody tr");
+        var name=[];
+        var cloum=[];
+        $.each(data,function (i,tr) {
+            if(i!=1){
+            var p=$(tr).find("td:first").html()+",";
+            var p1=$(tr).find("td:eq(2)").html()+",";
+            name.push(p);
+            cloum.push(p1);
+            }
+        })
+        $("#list1SortOrder").html(name);
+        $("#list1Value").html(cloum);
+    };
 </script>
 </body>
