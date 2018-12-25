@@ -6,28 +6,43 @@
     <script src="http://code.jquery.com/jquery-1.11.1.min.js"></script>
     <script src="../source/jquery.dragsort-0.6.js"></script>
     <script src="../source/xlsx.full.min.js"></script>
+    <script src="../source/template.js"></script>
+    <!--自定义拖动排序js-->
+    <script src="sortAndGetData.js"></script>
     <script src="../source/layer/layer.js"></script>
     <link rel="stylesheet" href="../source/layer/layer.css">
     <link rel="stylesheet" href="../source/bootstrap/css/bootstrap.min.css">
 <style>
-    .sheet{width: 100%;height:auto;padding-left: 30px;float: left}
+    .main{width: 100%;height:auto;padding-left: 30px;float: left;border: 1px #e2e3e5 solid;}
+    .hide{display: none}
+    .show{display: inline}
 </style>
 </head>
 <body>
+<!--选择文件区域-->
 <input type="file" onchange="importf(this)" />
-<!--excel工作项sheet显示区域-->
-<div style="float: left;width: 100%;">
+<!--功能按钮区-->
+<div class="main list-inline">
+    <button type="button" onclick="startSort()" id="startSort" class="btn btn-primary">开启排序</button>
+    <button type="button" onclick="destroySort()" id="destroySort" class="btn btn-primary hide">关闭排序</button>
+    <button type="button" onclick="showCol()" id="startCol" class="btn btn-primary">列数据操作</button>
+</div>
+<!-- 排序数据区域-->
+<div id="sortData"  class="hide main">
     中文列名:<textarea id="list1SortOrder" style="height: 200px;width: 100%" readonly disabled></textarea>
     <br/>
     属性:<textarea id="list1Value" style="height: 200px;width: 100%" readonly disabled></textarea>
 </div>
-<div id="sheet" class="sheet">
+
+<!--excel工作项sheet显示区域-->
+<div id="sheet" class="main">
     <b>Excel-sheet:</b>
     <span id="sheetbtn"></span>
-    <div id="excelData" style="height: 10px"></div>
+    <div id="excelData" style="width: 80%"></div>
 </div>
 <script>
     var wb;//读取完成的数据
+    var sheetT;
     var rABS = false; //是否将文件读取为二进制字符串
     function importf(obj) {
         if(!obj.files) {
@@ -75,15 +90,42 @@
         }
         return html;
     }
+    //展现表格数据
     function showExcelData(sheetIndex) {
         $("#sheetbtn [type='button']").addClass("btn btn-default");
         $(this).addClass("btn btn-primary");
         var sheetData=wb.Sheets[wb.SheetNames[sheetIndex]];
-        var sheetDataJson=JSON.stringify( XLSX.utils.sheet_to_html(sheetData));
-        sheetDataJson=sheetDataJson.substring(1,sheetDataJson.length-1);
-        $("#excelData").html(sheetDataJson);
-        $("table").addClass("table table-responsive table-hover table-bordered table-condensed");
-        $("tbody").dragsort({ dragSelector: "tr", dragEnd: saveOrder, placeHolderTemplate: "<tr></tr>" });
+        sheetT=sheetData;
+        var sheetDataJson=JSON.stringify( XLSX.utils.sheet_to_json(sheetData));
+        var data={};
+        //表格数据
+        data.tabledata=JSON.parse(sheetDataJson);
+        //列标题
+        data.header=getHeaderData(sheetData);
+        var tableHtml=template("table",data);
+        $("#excelData").html(tableHtml)
+    }
+    /**
+     * 列数据操作 index[列索引]name[列名]
+     * */
+    function showBuss(index,name) {
+        var data={
+            index:index,
+            name:name
+        };
+        var bussHtml=template("buss",data);
+        layer.open({
+            type:1,
+            area: ['600px', '320px'],
+            content:bussHtml,
+            title:'操作此列',
+            btn:['确定','取消'],
+            yes:function() {
+                var buss=$("[name='buss']:checked").val();
+                var bussData=getColData(sheetT,index,buss);
+                $("#bussData").val(bussData);
+            }
+        })
     }
     //获取列名数据
     function getHeaderData(sheet) {
@@ -101,17 +143,20 @@
         for(var R = range.s.c;R<= range.e.c; R++) {
             var address={c: R, r: 0};
             var cell_ref = XLSX.utils.encode_cell(address);
-            headerData.push(sheet[cell_ref].v);
+
+            if(sheet[cell_ref]){
+                headerData.push(sheet[cell_ref].v);
+            }
         }
         return headerData;
     }
-
     /**
      * 获取整列数据
      * sheet 数据
      * num 列 0起始
      */
-    function getColData(sheet,num) {
+    function getColData(sheet,num,type) {
+        if(!type){type='a'}
         var range=XLSX.utils.decode_range(sheet['!ref']);
         //判断是否超出文件数据内容的列
         if(num>range.e.c){
@@ -119,27 +164,46 @@
             return;
         }
         var cols_data=[];
-        for(var R = range.s.r;R<= range.e.r; R++) {
+        for(var R = range.s.r+1;R<= range.e.r; R++) {
             var address={c: num, r: R};
             var col_ref = XLSX.utils.encode_cell(address);
-           cols_data.push(sheet[col_ref].v);
+            if(sheet[col_ref]){
+                if (type=='a'){cols_data.push(sheet[col_ref].v);}
+                if (type=='b'){cols_data.push("\""+sheet[col_ref].v+"\"");}
+            }
         }
         return cols_data;
     }
-    function saveOrder() {
-        var data = $("table tbody tr");
-        var name=[];
-        var cloum=[];
-        $.each(data,function (i,tr) {
-            if(i!=1){
-            var p=$(tr).find("td:first").html()+",";
-            var p1=$(tr).find("td:eq(2)").html()+",";
-            name.push(p);
-            cloum.push(p1);
-            }
-        })
-        $("#list1SortOrder").html(name);
-        $("#list1Value").html(cloum);
-    };
+</script>
+<script id="table" type="text/html">
+<table class="table table-responsive table-hover table-bordered">
+   <thead>
+
+           <tr>
+               <th>序号</th>
+               {{each header as value i}}
+               <th>{{value}}&nbsp;<btn class="btn btn-info" onclick="showBuss('{{i}}','{{value}}')">操作此列</btn></th>
+               {{/each}}
+           </tr>
+   </thead>
+    <tbody>
+        {{each tabledata as item i}}
+        <tr>
+            <td>{{i}}</td>
+            {{each item as value key}}
+            <td>{{value}}</td>
+            {{/each}}
+        </tr>
+        {{/each}}
+    </tbody>
+</table>
+</script>
+<script id="buss" type="text/html">
+ <div>
+     <span>{{index}}{{name}}</span><br/>
+     <input type="radio" name="buss" value="a">此列原数据以逗号分隔导出<br/>
+     <input type="radio" name="buss" value="b">此列数据加双引号,以逗号分隔导出<br/>
+     数据:<textarea id="bussData" style="height: 200px;width: 100%" readonly disabled></textarea>
+ </div>
 </script>
 </body>
