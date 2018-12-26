@@ -25,7 +25,7 @@
 <div class="main list-inline">
     <button type="button" onclick="startSort()" id="startSort" class="btn btn-primary">开启排序</button>
     <button type="button" onclick="destroySort()" id="destroySort" class="btn btn-primary hide">关闭排序</button>
-    <button type="button" onclick="showCol()" id="startCol" class="btn btn-primary">列数据操作</button>
+    <!--<button type="button" onclick="showCol()" id="startCol" class="btn btn-primary">列数据操作</button>-->
 </div>
 <!-- 排序数据区域-->
 <div id="sortData"  class="hide main">
@@ -38,7 +38,7 @@
 <div id="sheet" class="main">
     <b>Excel-sheet:</b>
     <span id="sheetbtn"></span>
-    <div id="excelData" style="width: 80%"></div>
+    <div id="excelData" style="width: 100%"></div>
 </div>
 <script>
     var wb;//读取完成的数据
@@ -116,14 +116,21 @@
         var bussHtml=template("buss",data);
         layer.open({
             type:1,
-            area: ['600px', '320px'],
+            area: ['800px', '600px'],
             content:bussHtml,
             title:'操作此列',
-            btn:['确定','取消'],
-            yes:function() {
+            scrollbar: false,
+            btn:['确定','复制数据区内容','取消'],
+            btn1:function() {
                 var buss=$("[name='buss']:checked").val();
                 var bussData=getColData(sheetT,index,buss);
                 $("#bussData").val(bussData);
+            },
+            btn2: function(){
+                copy();
+            },
+            cancel: function(){
+                //右上角关闭回调
             }
         })
     }
@@ -170,13 +177,28 @@
             if(sheet[col_ref]){
                 if (type=='a'){cols_data.push(sheet[col_ref].v);}
                 if (type=='b'){cols_data.push("\""+sheet[col_ref].v+"\"");}
+                if (type=='c'){cols_data.push("'"+sheet[col_ref].v+"'");}
             }
         }
         return cols_data;
     }
+    function copy() {
+
+        var Url2=$("#bussData").val();
+        var oInput = document.createElement('input');
+        oInput.value = Url2;
+        document.body.appendChild(oInput);
+        oInput.select(); // 选择对象
+        document.execCommand("Copy"); // 执行浏览器复制命令
+        oInput.className = 'oInput';
+        oInput.style.display='none';
+        layer.msg('复制成功');
+        $(".oInput").remove();
+    }
 </script>
 <script id="table" type="text/html">
-<table class="table table-responsive table-hover table-bordered">
+<div style="width:100%; height:auto; overflow-x:scroll;">
+<table class="table  table-bordered table-responsive">
    <thead>
 
            <tr>
@@ -189,7 +211,7 @@
     <tbody>
         {{each tabledata as item i}}
         <tr>
-            <td>{{i}}</td>
+            <td>{{i+1}}</td>
             {{each item as value key}}
             <td>{{value}}</td>
             {{/each}}
@@ -197,13 +219,15 @@
         {{/each}}
     </tbody>
 </table>
+</div>
 </script>
 <script id="buss" type="text/html">
- <div>
-     <span>{{index}}{{name}}</span><br/>
+ <div style="margin:0px 30px;">
+     <span>列名:{{name}}</span><br/>
      <input type="radio" name="buss" value="a">此列原数据以逗号分隔导出<br/>
      <input type="radio" name="buss" value="b">此列数据加双引号,以逗号分隔导出<br/>
-     数据:<textarea id="bussData" style="height: 200px;width: 100%" readonly disabled></textarea>
+     <input type="radio" name="buss" value="c">此列数据加单引号,以逗号分隔导出<br/>
+     数据:<textarea id="bussData" style="height: 300px;width: 100%" readonly disabled></textarea>
  </div>
 </script>
 </body>
